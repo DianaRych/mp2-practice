@@ -1,4 +1,4 @@
-#include "Polinomds.h"
+#include "Polinoms.h"
 #include <sstream>
 #include <cmath>
 

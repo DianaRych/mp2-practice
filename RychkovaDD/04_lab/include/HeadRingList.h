@@ -12,7 +12,7 @@ public:
 	}
 
 	ListRingHead(const ListRingHead& other) : HeadList<T>(other) {
-		if (this->pLast != nullptr)
+		if (pLast != nullptr)
 		{
 			this->pLast->pNext = this->pHead;
 		}
@@ -20,7 +20,7 @@ public:
 
 	void InsertEnd(T key) {
 		HeadList<T>::InsertEnd(key);
-		this->pLast->pNext = this->pHead;
+		pLast->pNext = pHead;
 	}
 
 	void DeleteLast() { // TODO: use base
@@ -34,9 +34,13 @@ public:
 			this->pStop = this->pHead;
 			return;
 		}
-		TList<T>::DeleteLast();
-		if (this->pLast != nullptr) {
-			this->pLast->pNext = this->pFirst;
+		TNode<T>* tmp = this->pFirst;
+		while (tmp->pNext != this->pFirst) { // бежим до того момента пока не найдем ласт, который указывает на ферст
+			tmp = tmp->pNext; // tmp last elem
 		}
+		TNode<T>* last = tmp->pNext;
+		tmp->pNext = this->pFirst;
+		delete last;
+		this->pStop = this->pHead;
 	}
 };

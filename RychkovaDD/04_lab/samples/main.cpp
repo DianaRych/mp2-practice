@@ -1,7 +1,7 @@
 #include <iostream>
 #include <string>
 
-#include "Polinomds.h"
+#include "Polinoms.h"
 
 using namespace std;
 

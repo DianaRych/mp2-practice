@@ -72,9 +72,8 @@ public:
         return *this;
     }
 
-    // Получить первый элемент
     TNode<T>* GetFirst() const {
-        return pFirst;
+        return this->pFirst;  // Возвращаем первый элемент списка
     }
 
     // Получить последний элемент
@@ -103,6 +102,7 @@ public:
         pLast->pNext = tmp1;
         pLast = tmp1;
         pLast->pNext = pStop;
+        pCurrent = pLast;
     }
 
     // Вставка в начало

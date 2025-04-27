@@ -91,25 +91,25 @@ bool TMonom::operator==(const TMonom& m) const {
 	return (this->degree == m.degree);
 }
 
-bool TMonom::operator!=(const TMonom& m) const{
+bool TMonom::operator!=(const TMonom& m) const {
 	return !(*this == m);
 }
 
-bool TMonom::operator>(const TMonom& m) const{
+bool TMonom::operator>(const TMonom& m) const {
 	if (m.degree == this->degree) return this->coeff > m.coeff;
 	return this->degree > m.degree;
 }
 
-bool TMonom::operator<(const TMonom& m) const{
+bool TMonom::operator<(const TMonom& m) const {
 	if (m.degree == this->degree) return this->coeff < m.coeff;
 	return this->degree < m.degree;
 }
 
-bool TMonom::operator>=(const TMonom& m) const{
+bool TMonom::operator>=(const TMonom& m) const {
 	return !(*this < m);
 }
 
-bool TMonom::operator<=(const TMonom& m) const{
+bool TMonom::operator<=(const TMonom& m) const {
 	return !(*this > m);
 }
 
@@ -131,7 +131,7 @@ TMonom TMonom::operator*(const TMonom& m) {
 	return res;
 }
 
-double TMonom::operator()(double x, double y, double z) const{
+double TMonom::operator()(double x, double y, double z) const {
 	int x1 = degree / 100;
 	int y1 = degree / 10 % 10;
 	int z1 = degree % 100 % 10;
