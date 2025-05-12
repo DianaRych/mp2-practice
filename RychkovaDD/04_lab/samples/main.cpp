@@ -23,7 +23,7 @@ void printMenu() {
     cout << "Enter your choice: ";
 }
 
-TPolinom createPolynomial(int polyNumber) {
+Polynomial createPolynomial(int polyNumber) {
     string input;
     while (true) {
         cout << "Enter polynomial " << polyNumber << " (e.g., 2x^3y+5xy^2z-3z^2): ";
@@ -32,7 +32,7 @@ TPolinom createPolynomial(int polyNumber) {
 
         if (!input.empty()) {
             try {
-                return TPolinom(input);
+                return Polynomial(input);
             }
             catch (const exception& e) {
                 cerr << "Error: " << e.what() << ". Please try again." << endl;
@@ -65,7 +65,7 @@ TMonom createMonomial() {
     }
 }
 
-void evaluatePolynomial(const TPolinom& p) {
+void evaluatePolynomial(const Polynomial& p) {
     double x, y, z;
     cout << "Enter x value: ";
     cin >> x;
@@ -79,7 +79,7 @@ void evaluatePolynomial(const TPolinom& p) {
 }
 
 int main() {
-    TPolinom poly1, poly2, result;
+    Polynomial poly1, poly2, result;
     int choice;
 
     do {
@@ -125,15 +125,15 @@ int main() {
                 break;
             }
             case 8:
-                result = poly1.DiffX();
+                result = poly1.DifferentiateX();
                 cout << "Derivative by X: " << result << endl;
                 break;
             case 9:
-                result = poly1.DiffY();
+                result = poly1.DifferentiateY();
                 cout << "Derivative by Y: " << result << endl;
                 break;
             case 10:
-                result = poly1.DiffZ();
+                result = poly1.DifferentiateZ();
                 cout << "Derivative by Z: " << result << endl;
                 break;
             case 11:

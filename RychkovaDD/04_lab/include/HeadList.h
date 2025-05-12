@@ -5,43 +5,39 @@
 template <typename T>
 class HeadList : public TList<T> {
 protected:
-    TNode<T>* pHead;
-
+	TNode<T>* pHead;
 public:
-    // Конструктор
-    HeadList() : TList<T>() {
-        this->pHead = new TNode<T>();  // Создаём вспомогательный узел
-        this->pHead->pNext = nullptr;  // Инициализируем pNext как nullptr
-    }
+	HeadList() : TList<T>() {
+		this->pHead = new TNode<T>();
+		this->pHead->pNext = this->pFirst;
+	}
 
-    // Конструктор копирования
-    HeadList(const HeadList& other) : TList<T>(other) {
-        this->pHead = new TNode<T>();  // Создаём новый вспомогательный узел
-        this->pHead->pNext = this->pFirst;  // Связываем его с первым элементом
-    }
+	HeadList(const HeadList& other) :TList<T>(other) {
+		this->pHead = new TNode<T>();
+		this->pHead->pNext = this->pFirst;
+	}
 
-    // Деструктор
-    ~HeadList() {
-        delete this->pHead;  // Удаляем вспомогательный узел
-    }
+	~HeadList() {
+		delete this->pHead;
 
-    const HeadList& operator=(const HeadList& other) {
-        if (this == &other) return *this;
-        TList<T>::operator=(other);
-        this->pHead->pNext = this->pFirst;
-        return *this;
-    }
+	}
 
-    // Вставка в начало
-    virtual void InsertFirst(T key) override {
-        TList<T>::InsertFirst(key);  // Вставляем в начало списка
-        this->pHead->pNext = this->pFirst;  // Связываем pHead с первым элементом
-    }
+	virtual void InsertFirst(T key) {
+		TList<T>::InsertFirst(key);
+		this->pHead->pNext = this->pFirst;
+	}
 
-    // Вставка в конец
-    virtual void InsertEnd(T key) override {
-        TList<T>::InsertEnd(key);  // Вставляем в конец списка
-        this->pHead->pNext = this->pFirst;  // Связываем pHead с первым элементом
-    }
+	virtual void DeleteFirst() {
+		TList<T>::DeleteFirst();
+		this->pHead->pNext = this->pFirst;
+	}
+
+	const HeadList& operator=(const HeadList& other) {
+		this->pHead = nullptr;
+		TList<T>::operator=(other);
+		this->pHead = new TNode<T>();
+		this->pHead->pNext = this->pFirst;
+		return *this;
+	}
+
 };
-

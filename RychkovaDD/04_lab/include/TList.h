@@ -1,226 +1,239 @@
 #pragma once
 
+#include <algorithm>
+
 template <typename T>
 struct TNode {
-    T key;
-    TNode* pNext;
-    TNode() : key(), pNext(nullptr) {}
-    TNode(T k, TNode* pN = nullptr) : key(k), pNext(pN) {}
+	T key;
+	TNode* pNext;
+	TNode() : key(), pNext(nullptr) {}
+	TNode(T k) : key(k), pNext(nullptr) {}
 };
 
 template <typename T>
 class TList {
 protected:
-    TNode<T>* pFirst;
-    TNode<T>* pCurrent; // Каррентный элемент для навигации
-    TNode<T>* pLast; // Указатель на последний 
-    TNode<T>* pStop; // Конец списка
-    TNode<T>* pPrev; // Предыдущий для pCurr
+	TNode<T>* pFirst;
+	mutable  TNode<T>* pCurr = pStop;
+	mutable  TNode<T>* pPrev;
+	TNode<T>* pLast;
+	TNode<T>* pStop = nullptr;
 private:
-    void clear() {
-        while (this->pFirst != nullptr) {
-            TNode<T>* tmp = this->pFirst;
-            this->pFirst = this->pFirst->pNext;
-            delete tmp;
-        }
-        this->pFirst = nullptr;
-        this->pCurrent = nullptr;
-        this->pLast = nullptr;
-    }
 
-    void copy(const TList& other) {
-        this->pFirst = new TNode<T>(other.pFirst->key);
-        TNode<T>* tmp = this->pFirst;
-        TNode<T>* curr = other.pFirst->pNext;
-        while (curr != other.pStop) {
-            tmp->pNext = new TNode<T>(curr->key);
-            tmp = tmp->pNext;
-            curr = curr->pNext;
-        }
-        this->pLast = tmp;
-        this->pLast->pNext = pStop;
-    }
+	void clear() {
+
+		while (this->pFirst != nullptr) {
+			TNode<T>* tmp = this->pFirst;
+			this->pFirst = this->pFirst->pNext;
+			delete tmp;
+		}
+	}
+
+	void copy(const TList& other) {
+		this->pFirst = new TNode<T>(other.pFirst->key);
+		TNode<T>* tmp = this->pFirst;
+		TNode<T>* curr = other.pFirst->pNext;
+		while (curr != other.pStop) {
+			tmp->pNext = new TNode<T>(curr->key);
+			tmp = tmp->pNext;
+			curr = curr->pNext;
+		}
+		this->pLast = tmp;
+		this->pLast->pNext = pStop;
+	}
 
 public:
-    // Конструктор по умолчанию
-    TList() : pFirst(nullptr), pCurrent(nullptr), pLast(nullptr), pStop(nullptr), pPrev(nullptr) {}
+	TList() : pFirst(nullptr), pLast(this->pFirst) {}
 
-    // Конструктор копирования
-    TList(const TList& other) : pFirst(nullptr), pCurrent(nullptr), pLast(nullptr), pStop(nullptr), pPrev(nullptr) {
-        if (other.pFirst == nullptr) {
-            return;
-        }
-        copy(other);
-    }
+	TList(const TList& other) : pFirst(nullptr) {
+		if (other.pFirst == nullptr) {
+			return;
+		}
+		copy(other);
+	}
 
-    // Деструктор
-    virtual ~TList() {
-        clear();
-    }
+	~TList() {
+		clear();
+	}
 
-    // перегрузка присваивания
-    const TList& operator=(const TList& other) {
-        if (this == &other) return *this;
-        clear();
+	const TList& operator=(const TList& other) {
+		if (this == &other) return *this;
+		if (this->pLast != nullptr) { this->pLast->pNext = nullptr; }
+		clear();
+		if (other.pFirst != nullptr) {
+			copy(other);
+		}
+		else {
+			this->pFirst = nullptr;
+			this->pLast = nullptr;
+		}
 
-        if (other.pFirst != nullptr) {
-            copy(other);
-        }
-        else {
-            pFirst = pLast = nullptr;
-        }
-        return *this;
-    }
+		return *this;
 
-    TNode<T>* GetFirst() const {
-        return this->pFirst;  // Возвращаем первый элемент списка
-    }
+	}
 
-    // Получить последний элемент
-    TNode<T>* GetCurrent() const {
-        return pCurrent;
-    }
+	TNode<T>* Search(T key) {
+		if (this->pFirst == nullptr) return nullptr;
+		this->pCurr = this->pFirst;
+		this->pPrev = nullptr;
+		while (this->pCurr != pStop && this->pCurr->key != key) {
+			this->pPrev = this->pCurr;
+			this->pCurr = this->pCurr->pNext;
+		}
+		if (pCurr == pStop) pCurr = nullptr;
+		return pCurr;
+	}
 
-    // Поиск
-    virtual TNode<T>* Search(T key) {
-        pCurrent = pFirst;
-        pPrev = nullptr;
-        while (pCurrent != pStop && pCurrent->key != key) {
-            pPrev = pCurrent;
-            pCurrent = pCurrent->pNext;
-        }
-        return pCurrent;
-    }
+	virtual void InsertEnd(T key) {
+		if (pFirst == nullptr) {
+			this->InsertFirst(key);
+			return;
+		}
+		TNode<T>* tmp1 = new TNode<T>(key);
+		this->pLast->pNext = tmp1;
+		this->pLast = tmp1;
+		this->pLast->pNext = pStop;
+	}
 
-    // Вставка в конец
-    virtual void InsertEnd(T key) {
-        TNode<T>* tmp1 = new TNode<T>(key);
-        if (pFirst == nullptr) {
-            InsertFirst(key);
-            return;
-        }
-        pLast->pNext = tmp1;
-        pLast = tmp1;
-        pLast->pNext = pStop;
-        pCurrent = pLast;
-    }
+	void InsertBefore(T searchKey, T key) {
+		TNode<T>* tmp = Search(searchKey);
+		if (tmp == nullptr)
+		{
+			throw "Error";
+		}
+		if (tmp == this->pFirst) {
+			this->InsertFirst(key);
+			return;
+		}
+		TNode<T>* tmp1 = new TNode<T>(key);
+		this->pPrev->pNext = tmp1;
+		tmp1->pNext = this->pCurr;
+	}
 
-    // Вставка в начало
-    virtual void InsertFirst(T key) {
-        TNode<T>* tmp1 = new TNode<T>(key);
-        tmp1->pNext = pFirst;
-        pFirst = tmp1;
-        if (pLast == nullptr) {
-            pLast = pFirst;
-        }
-    }
+	void InsertAfter(T searchKey, T key) {
+		TNode<T>* tmp = Search(searchKey);
+		if (tmp == nullptr)
+		{
+			throw "Error";
+		}
+		if (tmp == this->pLast) {
+			this->InsertEnd(key);
+			return;
+		}
+		TNode<T>* tmp1 = new TNode<T>(key);
+		tmp1->pNext = pCurr->pNext;
+		pCurr->pNext = tmp1;
 
-    // Вставка перед элементом
-    virtual void InsertBefore(T searchKey, T key) {
-        Search(searchKey);
-        if (pCurrent == nullptr)
-        {
-            throw "Element not found";
-        }
-        if (pCurrent == pFirst) {
-            InsertFirst(key);
-            return;
-        }
-        TNode<T>* newNode = new TNode<T>(key);
-        newNode->pNext = pCurrent;
-        pPrev->pNext = newNode;
-    }
+	}
 
-    // Вставка после элемента
-    virtual void InsertAfter(T searchKey, T key) {
-        Search(searchKey);
-        if (pCurrent == nullptr) throw "Element not found";
-        TNode<T>* newNode = new TNode<T>(key);
-        newNode->pNext = pCurrent->pNext;
-        pCurrent->pNext = newNode;
-        if (pCurrent == pLast) {
-            pLast = newNode;
-        }
-    }
+	virtual void InsertFirst(T key) {
+		TNode<T>* tmp1 = new TNode<T>(key);
+		if (pFirst == nullptr) {
+			this->pFirst = tmp1;
+			this->pFirst->pNext = this->pStop;
+			this->pLast = this->pFirst;
+			this->Reset();
+			return;
+		}
+		tmp1->pNext = this->pFirst;
+		this->pFirst = tmp1;
+	}
 
-    // Удаление первого элемента
-    virtual void DeleteFirst() {
-        if (pFirst == nullptr) throw "List is empty";
-        TNode<T>* tmp = pFirst;
-        pFirst = pFirst->pNext;
-        delete tmp;
-        if (pFirst == pStop) {
-            pFirst = nullptr;
-            pLast = nullptr;
-        }
-    }
+	TNode<T>* GetFirst() const {
+		if (pFirst == nullptr) {
+			return nullptr;
+		}
+		return pFirst;
+	}
 
-    virtual void DeleteLast() {
-        if (pFirst == nullptr) throw "List is empty";
-        if (pFirst->pNext == pStop) {
-            delete pFirst;
-            pFirst = pLast = nullptr;
-            return;
-        }
-        TNode<T>* tmp = pFirst;
-        while (tmp->pNext != pLast) {
-            tmp = tmp->pNext;
-        }
-        delete pLast;
-        pLast = tmp;
-        pLast->pNext = pStop;
-    }
+	virtual void DeleteLast() {
+		if (pFirst == nullptr)
+			throw "Error";
 
-    // Удаление элемента по ключу
-    void DeleteByKey(T key) {
-        if (pFirst == nullptr) throw "List is empty";
-        Search(key);
-        if (pCurrent == nullptr)
-        {
-            throw  "Element not found";;
-        }
+		if (pFirst->pNext == pStop) {
+			DeleteFirst();
+			return;
+		}
 
-        if (pCurrent == pFirst)
-        {
-            DeleteFirst();
-            return;
-        }
-        pPrev->pNext = pCurrent->pNext;
-        delete pCurrent;
-    }
+		TNode<T>* tmp = pFirst;
+		while (tmp->pNext != pLast) {
+			tmp = tmp->pNext;
+		}
 
-    void Reset() {
-        this->pPrev = nullptr;
-        this->pCurrent = this->pFirst;
-    }
+		delete pLast;
+		tmp->pNext = pStop;
+		this->pLast = tmp;
+	}
 
-    void Next() {
-        if (pCurrent == nullptr) {
-            return;
-        }
+	virtual void DeleteFirst() {
+		if (pFirst == nullptr)
+			throw "Error";
 
-        if (pCurrent != pStop) {
-            pPrev = pCurrent;
-            pCurrent = pCurrent->pNext;
-        }
-    }
+		if (pFirst->pNext == pStop) {
+			delete pFirst;
+			pFirst = pLast = nullptr;
+			return;
+		}
 
-    bool IsEnd() const {
-        return pCurrent == pStop;
-    }
+		TNode<T>* tmp = pFirst->pNext;
+		delete pFirst;
+		this->pFirst = tmp;
+	}
 
-    bool operator==(const TList<T>& other) const {
-        TNode<T>* tmp = this->pFirst;
-        TNode<T>* oth = other.pFirst;
-        while (tmp != this->pStop && oth != other.pStop) {
-            if (oth->key != tmp->key) return 0;
-            tmp = tmp->pNext;
-            oth = oth->pNext;
-        }
-        if (oth == other.pStop && tmp == this->pStop) return 1;
-        return 0;
-    }
-    bool operator!=(const TList<T>& other) const {
-        return !(*this == other);
-    }
+	void DeleteByKey(T key) {
+		if (this->pFirst == nullptr) throw "Error";
+		TNode<T>* tmp = Search(key);
+		if (tmp == nullptr)
+		{
+			throw "Error";
+		}
+		if (pCurr == pFirst)
+		{
+			DeleteFirst();
+			return;
+		}
+		if (pCurr == pLast)
+		{
+			DeleteLast();
+			return;
+		}
+		this->pPrev->pNext = pCurr->pNext;
+		delete pCurr;
+	}
+
+	void Reset() const {
+		if (this->pFirst == nullptr) {
+			this->pCurr = this->pStop;
+			return;
+		}
+		this->pCurr = this->pFirst;
+		this->pPrev = nullptr;
+	}
+
+	TNode<T>* GetCurrent() const { return this->pCurr; }
+
+	void Next() const {
+		this->pPrev = this->pCurr;
+		this->pCurr = this->pCurr->pNext;
+	}
+
+	bool IsEnd() const {
+		return (pCurr == pStop);
+	}
+
+	bool operator==(const TList<T>& other) const {
+		TNode<T>* tmp = this->pFirst;
+		TNode<T>* oth = other.pFirst;
+		while (tmp != this->pStop && oth != other.pStop) {
+			if (oth->key != tmp->key) return 0;
+			tmp = tmp->pNext;
+			oth = oth->pNext;
+		}
+		if (oth == other.pStop && tmp == this->pStop) return 1;
+		return 0;
+	}
+
+	bool operator!=(const TList<T>& other) const {
+		return !(*this == other);
+	}
 };

@@ -1,381 +1,367 @@
 #include "Polinoms.h"
-#include <sstream>
-#include <cmath>
 
-string TPolinom::GetPolinom(const TPolinom& p) {
-    TPolinom copy = p; // создаем полином и присваиваем ему значения полинома p
-    copy.monoms.Reset(); // с помощью ресет сбрасывается итератор на первый моном в списке
-    TNode<TMonom>* current = this->monoms.GetFirst(); // получаем первый моном
-    string result = "";
+// Обновление строкового представления полинома
+void Polynomial::UpdateStringForm() {
+    string result; // Строка для накопления результата
+    terms.Reset(); // Начинаем обход с первого элемента списка мономов
+    bool firstTerm = true; // Флаг первого члена (чтобы не ставить "+" перед первым членом)
 
-    while (!copy.monoms.IsEnd()) {
-        int degree = current->key.GetDegree();
-        int x = degree / 100;
-        int y = degree / 10 % 10;
-        int z = degree % 100 % 10;
-        double coeff = current->key.GetCoeff();
+    // Проходим по всем мономам полинома
+    while (!terms.IsEnd()) {
+        TMonom current = terms.GetCurrent()->key; // Получаем текущий моном
+        double coeff = current.GetCoeff(); // Извлекаем коэффициент монома
 
-        std::stringstream monomStream; // создаем строковой поток, чтобы записать в него коэффицент и представить в виде строки
-        monomStream << coeff;
-        string monom = monomStream.str() + compileMonom(x, y, z); // преобразовываем monomStream в строку и вызываем compileMonom, которая приводит в порядок полином
-
-        if (!result.empty()) { // если у нас не первый моном => результ не пустой
-            if (coeff > 0) {
-                result += "+" + monom; // делаем запись, чтобы была моном + моном
+        // Обрабатываем только ненулевые коэффициенты
+        if (coeff != 0) {
+            // Добавляем знак "+" перед положительными коэффициентами (кроме первого члена)
+            if (!firstTerm && coeff > 0) {
+                result += "+";
             }
+
+            // Обработка коэффициента:
+            // 1. Если коэффициент не 1/-1 или это свободный член (степень 0)
+            if (coeff != 1 && coeff != -1 || current.GetDegree() == 0) {
+                // Проверяем, целый ли коэффициент
+                if (floor(coeff) == coeff) {
+                    result += to_string((int)coeff); // Выводим как целое число
+                }
+                else {
+                    result += to_string(coeff); // Выводим как дробное
+                }
+            }
+            // 2. Если коэффициент -1, выводим только минус
+            else if (coeff == -1) {
+                result += "-";
+            }
+            // Для коэффициента 1 ничего не выводим (кроме случая, когда это свободный член)
+
+            // Разбираем степень на составляющие x, y, z
+            int degree = current.GetDegree();
+            int x = degree / 100;       // Степень x (сотни)
+            int y = (degree / 10) % 10; // Степень y (десятки)
+            int z = degree % 10;        // Степень z (единицы)
+
+            // Добавляем переменные x, y, z с их степенями
+            if (x > 0) result += (x == 1) ? "x" : ("x^" + to_string(x));
+            if (y > 0) result += (y == 1) ? "y" : ("y^" + to_string(y));
+            if (z > 0) result += (z == 1) ? "z" : ("z^" + to_string(z));
+
+            firstTerm = false; // Первый член уже обработан
+        }
+        terms.Next(); // Переходим к следующему моному
+    }
+
+    // Если строка пустая (все коэффициенты 0), возвращаем "0"
+    polyString = result.empty() ? "0" : result;
+}
+
+// Добавление монома в полином
+void Polynomial::AddTerm(const TMonom& term) {
+    // Пропускаем мономы с нулевым коэффициентом
+    if (term.GetCoeff() == 0) return;
+
+    // Проверяем, есть ли уже моном с такой же степенью
+    TNode<TMonom>* existing = terms.Search(term);
+
+    if (!existing) {
+        // Если монома с такой степенью нет, вставляем его в нужное место
+        terms.Reset(); // Начинаем с начала списка
+        bool inserted = false; // Флаг успешной вставки
+
+        // Ищем место для вставки (список упорядочен по убыванию степеней)
+        while (!terms.IsEnd()) {
+            if (term.GetDegree() > terms.GetCurrent()->key.GetDegree()) {
+                // Вставляем перед текущим элементом
+                terms.InsertBefore(terms.GetCurrent()->key, term);
+                inserted = true;
+                break;
+            }
+            terms.Next();
+        }
+
+        // Если не нашли место в середине списка, добавляем в конец
+        if (!inserted) {
+            terms.InsertEnd(term);
+        }
+    }
+    else {
+        // Если моном с такой степенью уже есть, складываем коэффициенты
+        double newCoeff = existing->key.GetCoeff() + term.GetCoeff();
+
+        // Проверяем, не стал ли коэффициент нулевым после сложения
+        if (fabs(newCoeff) > 1e-10) { // Сравнение с учетом погрешности
+            // Создаем новый моном с суммой коэффициентов
+            TMonom newTerm(newCoeff, term.GetDegree());
+            // Удаляем старый моном и добавляем новый
+            terms.DeleteByKey(existing->key);
+            AddTerm(newTerm); // Рекурсивный вызов для правильного размещения
         }
         else {
-            result += monom; // если первый => просто записываем моном
+            // Если коэффициент стал нулевым, удаляем моном
+            terms.DeleteByKey(existing->key);
         }
-        current = current->pNext;
-        copy.monoms.Next();
     }
+    // Обновляем строковое представление полинома
+    UpdateStringForm();
+}
+
+// Вспомогательная функция для формирования строки вида "x^2y^3z"
+string Polynomial::BuildTermString(int x, int y, int z) {
+    string result;
+    if (x > 0) result += (x == 1) ? "x" : ("x^" + to_string(x));
+    if (y > 0) result += (y == 1) ? "y" : ("y^" + to_string(y));
+    if (z > 0) result += (z == 1) ? "z" : ("z^" + to_string(z));
     return result;
 }
 
-string TPolinom::compileMonom(int x, int y, int z) {
-    std::stringstream result;
-    if (x == 1) {
-        result << "x";
-    }
-    else if (x != 0) {
-        result << "x^" << x;
+// Конструкторы:
+
+// Конструктор по умолчанию (создает нулевой полином)
+Polynomial::Polynomial() : polyString("0") {}
+
+// Конструктор из строки (например: "2x^2y-3y+z+5")
+Polynomial::Polynomial(const string& input) {
+    string termStr; // Буфер для накопления символов одного монома
+
+    // Разбираем строку посимвольно
+    for (char c : input) {
+        // Если встретили '+' или '-' (начало нового монома)
+        if ((c == '+' || c == '-') && !termStr.empty()) {
+            TMonom term(termStr); // Создаем моном из накопленной строки
+            AddTerm(term);        // Добавляем в полином
+            termStr = "";         // Очищаем буфер
+        }
+        termStr += c; // Добавляем текущий символ в буфер
     }
 
-    if (y == 1) {
-        result << "y";
+    // Добавляем последний моном (если буфер не пуст)
+    if (!termStr.empty()) {
+        TMonom term(termStr);
+        AddTerm(term);
     }
-    else if (y != 0) {
-        result << "y^" << y;
-    }
-
-    if (z == 1) {
-        result << "z";
-    }
-    else if (z != 0) {
-        result << "z^" << z;
-    }
-
-    return result.str();
+    // Формируем строковое представление полинома
+    UpdateStringForm();
 }
 
-void TPolinom::CheckPolinoms(const string& monom) {
-    try {
-        TMonom newMonom(monom);
-        this->monoms.Reset();
+// Конструктор копирования
+Polynomial::Polynomial(const Polynomial& other) {
+    terms = other.terms;            // Копируем список мономов
+    polyString = other.polyString;  // Копируем строковое представление
+}
 
-        bool found = false;
-        TNode<TMonom>* nodeToUpdate = nullptr;
+// Операторы сравнения:
 
-        // Ищем моном с такой же степенью
-        while (!this->monoms.IsEnd()) {
-            TNode<TMonom>* current = this->monoms.GetCurrent();
-            if (current->key.GetDegree() == newMonom.GetDegree()) {
-                nodeToUpdate = current;
-                found = true;
-                break;
-            }
-            this->monoms.Next();
-        }
+// Проверка на равенство полиномов
+bool Polynomial::operator==(const Polynomial& other) const {
+    return terms == other.terms; // Сравниваем списки мономов
+}
 
-        if (found) {
-            // Нашли моном с такой же степенью - складываем
-            TMonom sum = nodeToUpdate->key + newMonom;
-            if (sum.GetCoeff() == 0) {
-                // Если сумма равна нулю, удаляем моном (нужно реализовать RemoveCurrent)
-                // Временное решение - оставляем как есть
-            }
-            else {
-                nodeToUpdate->key = sum;
-            }
-        }
-        else {
-            // Не нашли - добавляем новый моном
-            this->monoms.InsertEnd(newMonom);
-        }
+// Проверка на неравенство
+bool Polynomial::operator!=(const Polynomial& other) const {
+    return !(*this == other); // Отрицание оператора равенства
+}
 
-        this->monoms.Reset();
+// Оператор присваивания
+const Polynomial& Polynomial::operator=(const Polynomial& other) {
+    // Проверка на самоприсваивание
+    if (this != &other) {
+        terms = other.terms;            // Копируем список мономов
+        polyString = other.polyString;  // Копируем строковое представление
     }
-    catch (...) {
-        // Обработка ошибок создания монома
-        cerr << "Error creating monom from: " << monom << endl;
-    }
-}
-
-TPolinom::TPolinom() {}
-
-TPolinom::TPolinom(const string& polinom) {
-    this->id_pol = polinom;
-    string currentMonom;
-    bool isNegative = false;
-
-    for (size_t i = 0; i < polinom.length(); i++) {
-        char c = polinom[i];
-
-        // Обрабатываем знак только если это начало нового монома
-        if (c == '+' || c == '-') {
-            if (!currentMonom.empty()) {
-                if (isNegative) {
-                    currentMonom = "-" + currentMonom;
-                }
-                CheckPolinoms(currentMonom);
-                currentMonom.clear();
-            }
-            isNegative = (c == '-');
-        }
-        else if (c != ' ') {
-            currentMonom += c;
-        }
-    }
-
-    // Добавляем последний моном
-    if (!currentMonom.empty()) {
-        if (isNegative) {
-            currentMonom = "-" + currentMonom;
-        }
-        CheckPolinoms(currentMonom);
-    }
-}
-
-TPolinom::TPolinom(const TPolinom& other) {
-    this->id_pol = other.id_pol;
-    ListRingHead<TMonom> l(other.monoms);
-    this->monoms = l;
-}
-
-bool TPolinom::operator==(const TPolinom& other) const {
-    return (this->monoms == other.monoms) && (this->id_pol == other.id_pol);
-}
-
-bool TPolinom::operator!=(const TPolinom& other) const {
-    return !(*this == other);
-}
-
-const TPolinom& TPolinom::operator=(const TPolinom& other) {
-    if (this == &other) return *this; // без самоприсваивания
-    this->id_pol = other.id_pol;
-    this->monoms = other.monoms;
     return *this;
 }
 
-TPolinom TPolinom::DiffX() {
-    TPolinom result;
-    this->monoms.Reset();
-    TNode<TMonom>* node = this->monoms.GetFirst();
+// Методы дифференцирования:
 
-    while (!this->monoms.IsEnd()) {
-        TMonom monom = node->key.DiffX();
-        if (monom.GetCoeff() != 0) {
-            result.monoms.InsertEnd(monom);
-        }
-        this->monoms.Next();
-        node = this->monoms.GetCurrent();
-    }
-    return result;
-}
+// Дифференцирование по x
+Polynomial Polynomial::DifferentiateX() const {
+    Polynomial result; // Полином-результат
+    terms.Reset();     // Начинаем обход с первого монома
 
-TPolinom TPolinom::DiffY() {
-    TPolinom result;
-    this->monoms.Reset();
-    TNode<TMonom>* node = this->monoms.GetFirst();
+    while (!terms.IsEnd()) {
+        TMonom current = terms.GetCurrent()->key;
+        int x = current.GetDegree() / 100; // Извлекаем степень x
 
-    while (!this->monoms.IsEnd()) {
-        TMonom monom = node->key.DiffY();
-        if (monom.GetCoeff() != 0) {
-            result.monoms.InsertEnd(monom);
-        }
-        this->monoms.Next();
-        node = this->monoms.GetCurrent();
-    }
-    return result;
-}
-
-TPolinom TPolinom::DiffZ() {
-    TPolinom result;
-    this->monoms.Reset();
-    TNode<TMonom>* node = this->monoms.GetFirst();
-
-    while (!this->monoms.IsEnd()) {
-        TMonom monom = node->key.DiffZ();
-        if (monom.GetCoeff() != 0) {
-            result.monoms.InsertEnd(monom);
-        }
-        this->monoms.Next();
-        node = this->monoms.GetCurrent();
-    }
-    return result;
-}
-
-TPolinom TPolinom::operator+(const TMonom& monom) { // полином + моном
-    TPolinom result = *this;
-    result.CheckPolinoms(monom.GetMonom()); // TODO: loop по мономам
-    return result;
-}
-
-TPolinom TPolinom::operator+(const TPolinom& pol) { // полином + полином
-    TPolinom result = *this;
-    TNode<TMonom>* node = this->monoms.GetFirst();
-
-    while (!pol.monoms.IsEnd()) {   // TODO: loop по мономам
-        result.CheckPolinoms(node->key.GetMonom()); // polinom + monom
-        node = node->pNext;
-    }
-    return result;
-}
-
-TPolinom TPolinom::operator+(double scalar) { // полином + конст
-    TMonom scalarMonom(scalar, 0);
-    return *this + scalarMonom;
-}
-
-TPolinom TPolinom::operator-(const TMonom& mon) {
-    TMonom negativeMon(-mon.GetCoeff(), mon.GetDegree()); // создаем моном, заполняем 2 необходимых поля монома, степень и коэфф
-    return *this + negativeMon;
-}
-
-TPolinom TPolinom::operator-(const TPolinom& pol) {
-    TPolinom result = *this;
-
-    // Создаем копию monoms из pol для изменения
-    ListRingHead<TMonom> tempMonoms = pol.monoms;
-    tempMonoms.Reset();  // Сброс итератора для работы с ним
-
-    while (!tempMonoms.IsEnd()) {
-        TNode<TMonom>* node = tempMonoms.GetCurrent();
-        TMonom negativeMonom(-node->key.GetCoeff(), node->key.GetDegree());
-        result.CheckPolinoms(negativeMonom.GetMonom());
-        tempMonoms.Next();  // Теперь мы изменяем копию, а не оригинал
-    }
-
-    return result;
-}
-
-TPolinom TPolinom::operator-(double scalar) {
-    return *this + (-scalar);
-}
-
-TPolinom TPolinom::operator*(double scalar) {
-    TPolinom result;
-
-    if (scalar == 0.0) {
-        return TPolinom();
-    }
-
-    while (!monoms.IsEnd()) {
-        TNode<TMonom>* node = this->monoms.GetCurrent();
-        TMonom multipliedMonom(node->key.GetCoeff() * scalar, node->key.GetDegree());
-        result.monoms.InsertEnd(multipliedMonom);
-        node = node->pNext;
-    }
-    return result;
-}
-
-TPolinom TPolinom::operator*(const TMonom& monom) {
-    TPolinom result;
-
-    while (!monoms.IsEnd()) {
-        TNode<TMonom>* node = this->monoms.GetCurrent();
-        TMonom product = node->key * monom;
-        int x = product.GetDegree() / 100;
-        int y = (product.GetDegree() / 10) % 10;
-        int z = product.GetDegree() % 10;
-
-        if (x > 9 || y > 9 || z > 9) {
-            throw "Error";
-        }
-
-        result.monoms.InsertEnd(product);
-        node = node->pNext;
-    }
-    return result;
-}
-
-TPolinom TPolinom::operator*(const TPolinom& pol) {
-    TPolinom result;
-    this->monoms.Reset();  // Операции с оригинальным объектом
-
-    ListRingHead<TMonom> tempMonoms = pol.monoms;  // Копия monoms для полинома
-    tempMonoms.Reset();  // Сброс итератора для работы с ним
-
-    while (!this->monoms.IsEnd()) {
-        TNode<TMonom>* node1 = this->monoms.GetCurrent();
-        tempMonoms.Reset();  // Сброс итератора для второго полинома
-
-        while (!tempMonoms.IsEnd()) {
-            TNode<TMonom>* node2 = tempMonoms.GetCurrent();
-            TMonom product = node1->key * node2->key;
-            result = result + product;
-            tempMonoms.Next();  // Двигаем итератор по копии
-        }
-        this->monoms.Next();  // Двигаем итератор по текущему полиному
-    }
-
-    return result;
-}
-
-double TPolinom::operator()(double x, double y, double z) const {
-    double result = 0.0;
-    TPolinom tmp(*this);
-    tmp.monoms.Reset();
-
-    while (!tmp.monoms.IsEnd()) {
-        result += tmp.monoms.GetCurrent()->key(x, y, z);
-        tmp.monoms.Next();
-    }
-
-    return result;
-}
-
-ostream& operator<<(ostream& ostr, const TPolinom& pol) {
-    if (pol.monoms.GetFirst() == nullptr) {
-        ostr << "0";
-        return ostr;
-    }
-
-    ListRingHead<TMonom> tempList = pol.monoms;
-    tempList.Reset();
-    bool firstTerm = true;
-
-    while (!tempList.IsEnd()) {
-        TMonom current = tempList.GetCurrent()->key;
-        double coeff = current.GetCoeff();
-        int degree = current.GetDegree();
-        int x = degree / 100;
-        int y = (degree / 10) % 10;
-        int z = degree % 10;
-
-        if (!firstTerm) {
-            if (coeff > 0) {
-                ostr << " + ";
-            }
-            else {
-                ostr << " - ";
-                coeff = -coeff;
-            }
-        }
-        else if (coeff < 0) {
-            ostr << "-";
-            coeff = -coeff;
-        }
-
-        ostr << coeff;
-
+        // Если степень x > 0, вычисляем производную
         if (x > 0) {
-            ostr << "x";
-            if (x > 1) ostr << "^" << x;
+            // Новый коэффициент = старый * степень x
+            // Новая степень = (x-1)*100 + остаток (для y и z)
+            TMonom derived(current.GetCoeff() * x,
+                (x - 1) * 100 + (current.GetDegree() % 100));
+            result.AddTerm(derived);
         }
-        if (y > 0) {
-            ostr << "y";
-            if (y > 1) ostr << "^" << y;
-        }
-        if (z > 0) {
-            ostr << "z";
-            if (z > 1) ostr << "^" << z;
-        }
-
-        firstTerm = false;
-        tempList.Next();
+        terms.Next(); // Следующий моном
     }
+    return result;
+}
 
-    return ostr;
+Polynomial Polynomial::DifferentiateY() const {
+    Polynomial result;
+    terms.Reset();
+
+    while (!terms.IsEnd()) {
+        TMonom current = terms.GetCurrent()->key;
+        int degree = current.GetDegree();
+        int y = (degree / 10) % 10; // Получаем степень y
+
+        if (y > 0) {
+            // Вычисляем новую степень:
+            // - сохраняем степень x (первые две цифры)
+            // - уменьшаем степень y на 1
+            // - сохраняем степень z (последняя цифра)
+            int new_degree = (degree / 100) * 100 + (y - 1) * 10 + (degree % 10);
+
+            // Создаем новый моном с обновленным коэффициентом и степенью
+            TMonom derived(current.GetCoeff() * y, new_degree);
+            result.AddTerm(derived);
+        }
+        terms.Next();
+    }
+    return result;
+}
+
+// Дифференцирование по z
+Polynomial Polynomial::DifferentiateZ() const {
+    Polynomial result;
+    terms.Reset();
+
+    while (!terms.IsEnd()) {
+        TMonom current = terms.GetCurrent()->key;
+        int degree = current.GetDegree();
+        int z = degree % 10; // Извлекаем степень z
+
+        if (z > 0) {
+            // Новый коэффициент = старый * степень z
+            // Новая степень: уменьшаем степень z на 1, остальные оставляем без изменений
+            int new_degree = (degree / 10) * 10 + (z - 1);
+            TMonom derived(current.GetCoeff() * z, new_degree);
+            result.AddTerm(derived);
+        }
+        terms.Next();
+    }
+    return result;
+}
+
+// Арифметические операции:
+
+// Сложение с мономом
+Polynomial Polynomial::operator+(const TMonom& term) const {
+    Polynomial result(*this); // Копируем текущий полином
+    result.AddTerm(term);     // Добавляем моном
+    return result;
+}
+
+// Сложение с другим полиномом
+Polynomial Polynomial::operator+(const Polynomial& other) const {
+    Polynomial result(*this); // Копируем текущий полином
+    other.terms.Reset();      // Начинаем обход второго полинома
+
+    // Добавляем все мономы второго полинома
+    while (!other.terms.IsEnd()) {
+        result.AddTerm(other.terms.GetCurrent()->key);
+        other.terms.Next();
+    }
+    return result;
+}
+
+// Сложение с константой
+Polynomial Polynomial::operator+(double constant) const {
+    return *this + TMonom(constant, 0); // Создаем моном степени 0
+}
+
+// Вычитание монома (как сложение с отрицательным)
+Polynomial Polynomial::operator-(const TMonom& term) const {
+    return *this + TMonom(-term.GetCoeff(), term.GetDegree());
+}
+
+// Вычитание полинома
+Polynomial Polynomial::operator-(const Polynomial& other) const {
+    Polynomial result(*this);
+    other.terms.Reset();
+
+    // Добавляем все мономы второго полинома с отрицательными коэффициентами
+    while (!other.terms.IsEnd()) {
+        result.AddTerm(TMonom(-other.terms.GetCurrent()->key.GetCoeff(),
+            other.terms.GetCurrent()->key.GetDegree()));
+        other.terms.Next();
+    }
+    return result;
+}
+
+// Вычитание константы
+Polynomial Polynomial::operator-(double constant) const {
+    return *this + (-constant); // Сложение с отрицательной константой
+}
+
+// Умножение на скаляр
+Polynomial Polynomial::operator*(double factor) const {
+    Polynomial result;
+    terms.Reset();
+
+    // Умножаем каждый моном на скаляр
+    while (!terms.IsEnd()) {
+        TMonom scaled(terms.GetCurrent()->key.GetCoeff() * factor,
+            terms.GetCurrent()->key.GetDegree());
+        result.AddTerm(scaled);
+        terms.Next();
+    }
+    return result;
+}
+
+// Умножение на моном
+Polynomial Polynomial::operator*(const TMonom& term) const {
+    Polynomial result;
+    terms.Reset();
+
+    // Умножаем каждый моном текущего полинома на заданный моном
+    while (!terms.IsEnd()) {
+        TMonom current = terms.GetCurrent()->key;
+        // Коэффициенты перемножаем, степени складываем
+        TMonom product(current.GetCoeff() * term.GetCoeff(),
+            current.GetDegree() + term.GetDegree());
+        result.AddTerm(product);
+        terms.Next();
+    }
+    return result;
+}
+
+// Умножение полиномов
+Polynomial Polynomial::operator*(const Polynomial& other) const {
+    Polynomial result;
+    terms.Reset();
+
+    // Каждый моном первого полинома умножаем на каждый моном второго
+    while (!terms.IsEnd()) {
+        other.terms.Reset();
+        TMonom current = terms.GetCurrent()->key;
+
+        while (!other.terms.IsEnd()) {
+            TMonom otherCurrent = other.terms.GetCurrent()->key;
+            TMonom product(current.GetCoeff() * otherCurrent.GetCoeff(),
+                current.GetDegree() + otherCurrent.GetDegree());
+            result.AddTerm(product);
+            other.terms.Next();
+        }
+        terms.Next();
+    }
+    return result;
+}
+
+// Вычисление значения полинома в точке (x,y,z)
+double Polynomial::operator()(double x, double y, double z) const {
+    double result = 0.0;
+    terms.Reset();
+
+    // Суммируем значения всех мономов в заданной точке
+    while (!terms.IsEnd()) {
+        result += terms.GetCurrent()->key(x, y, z);
+        terms.Next();
+    }
+    return result;
+}
+
+// Вывод полинома в поток
+ostream& operator<<(ostream& os, const Polynomial& poly) {
+    os << poly.polyString; // Просто выводим строковое представление
+    return os;
 }

@@ -11,10 +11,10 @@ class TMonom {
 private:
 	int degree;
 	double coeff;
-	double GetConvolution(const string& pMem);
+	int GetConvolution(const string& pMem);
 
 public:
-	TMonom() : coeff(0.0), degree(0) {}
+	TMonom();
 	TMonom(const string& pMem);
 	TMonom(const TMonom& mon);
 	TMonom(const double coeff, const int degree);
@@ -29,14 +29,12 @@ public:
 	TMonom operator+(const TMonom& m);
 	TMonom operator-(const TMonom& m);
 	TMonom operator*(const TMonom& m);
+
+	TMonom operator*(const double m);
+
 	double operator()(double x, double y, double z) const;
-
-	TMonom DiffX() const;
-	TMonom DiffY() const;
-	TMonom DiffZ() const;
-
-	string GetMonom() const;
 
 	int GetDegree() const;
 	double GetCoeff() const;
+
 };
